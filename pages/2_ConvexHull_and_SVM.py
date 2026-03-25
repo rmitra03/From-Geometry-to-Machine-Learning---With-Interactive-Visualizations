@@ -186,6 +186,20 @@ with col2:
 # Instructions
 st.info("Click 'Generate Random Classes' to see two separated point clouds")
 
+# Description of why it works
+st.markdown("---")
+st.subheader("Why Does This Happen?")
+st.markdown("""
+**Support Vector Machines** find the maximum-margin hyperplane that separates two classes. 
+Geometrically, this is equivalent to finding the shortest line segment connecting the convex hulls of each class, 
+then drawing a perpendicular bisector.
+
+**Key insight:** The support vectors (highlighted in yellow) are always points that lie on the boundary 
+of their class's convex hull. These are the "critical points" that define the decision boundary.
+
+**Watch:** The decision boundary is always equidistant from the closest points on each hull.
+""")
+
 # Manual point input
 with st.expander("Add points manually"):
     class_choice = st.radio("Add to which class?", ["Class 0 (Blue)", "Class 1 (Red)"])

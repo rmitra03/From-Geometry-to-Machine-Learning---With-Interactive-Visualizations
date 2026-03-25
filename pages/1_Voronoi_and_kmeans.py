@@ -112,6 +112,21 @@ with col2:
 # Instructions
 st.info("Add points using 'Generate Random Points' or manually add coordinates below")
 
+# Description of why it works
+st.markdown("---")
+st.subheader("Why Does This Happen?")
+st.markdown("""
+**k-means clustering** is fundamentally a geometric algorithm. Each iteration performs two steps:
+1. **Assignment**: Assign each point to its nearest centroid (creates Voronoi cells)
+2. **Update**: Move centroids to the center of their assigned points
+
+The Voronoi diagram visualizes step 1, where it partitions space based on "nearest neighbor" regions. 
+When k-means converges, the cluster assignments are the same as the Voronoi cells around the final centroids.
+
+**What to observe:** As you adjust k, both visualizations show the same geometric partitioning in different ways.
+The red Voronoi edges define the boundaries between clusters, while k-means colors points by their assigned cluster.
+""")
+
 # Manual point input (temporary solution - it'll be clickable later)
 with st.expander("Add points manually"):
     col_x, col_y = st.columns(2)

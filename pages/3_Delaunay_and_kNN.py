@@ -234,6 +234,23 @@ with col2:
 # Instructions
 st.info("Generate random classes, then set a query point to see k-NN classification")
 
+# Description of why it works
+st.markdown("---")
+st.subheader("Why Does This Happen?")
+st.markdown("""
+**k-Nearest Neighbors (k-NN)** classification relies on finding the k closest points to a query point. 
+The **Delaunay triangulation** provides an optimal geometric structure for this search:
+
+- Delaunay triangles connect points that are natural neighbors
+- The dual of Delaunay is the Voronoi diagram (from Demo 1!)
+- Nearest neighbors are guaranteed to share a Delaunay edge
+
+This means we can use Delaunay structure to efficiently find k-nearest neighbors without 
+computing distances to every single point.
+
+**What to observe:** The green dashed lines show the k-nearest neighbors. They follow the Delaunay edges!
+""")
+
 # Manual input
 with st.expander("Add points manually"):
     input_type = st.radio("What to add?", ["Training Point", "Query Point"])
