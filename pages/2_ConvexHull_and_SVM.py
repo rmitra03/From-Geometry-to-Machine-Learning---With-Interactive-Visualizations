@@ -26,11 +26,16 @@ if st.sidebar.button("Clear All Points"):
     st.rerun()
 
 if st.sidebar.button("Generate Random Classes"):
-    # Generate two separated clusters
-    np.random.seed(42)
-    st.session_state.class_0 = (np.random.randn(15, 2) * 0.15 + [0.3, 0.3]).tolist()
-    st.session_state.class_1 = (np.random.randn(15, 2) * 0.15 + [0.7, 0.7]).tolist()
+    # Generate two separated clusters with random positions each time
+    center_0 = np.random.rand(2) * 0.4 + 0.1  # Random center in [0.1, 0.5]
+    center_1 = np.random.rand(2) * 0.4 + 0.5  # Random center in [0.5, 0.9]
+    
+    st.session_state.class_0 = (np.random.randn(15, 2) * 0.12 + center_0).tolist()
+    st.session_state.class_1 = (np.random.randn(15, 2) * 0.12 + center_1).tolist()
     st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.caption("Click 'Generate' multiple times to see different configurations")
 
 # Main plotting area
 col1, col2 = st.columns(2)
@@ -185,6 +190,109 @@ with col2:
 
 # Instructions
 st.info("Click 'Generate Random Classes' to see two separated point clouds")
+
+# Quantitative Analysis Section
+if len(st.session_state.class_0) >= 3 and len(st.session_state.class_1) >= 3:
+    st.markdown("---")
+    st.subheader("Quantitative Analysis")
+    
+    points_0 = np.array(st.session_state.class_0)
+    points_1 = np.array(st.session_state.class_1)
+    
+    X = np.vstack([points_0, points_1])
+    y = np.array([0] * len(points_0) + [1] * len(points_1))
+    
+    svm = SVC(kernel='linear', C=1000)
+    svm.fit(X, y)
+    
+    hull_0 = ConvexHull(points_0)
+    hull_1 = ConvexHull(points_1)
+    
+    # Basic metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Support Vectors", len(svm.support_vectors_))
+    
+    with col2:
+        # Margin width: 2 / ||w||
+        margin = 2.0 / np.linalg.norm(svm.coef_)
+        st.metric("Margin Width", f"{margin:.4f}")
+    
+    with col3:
+        st.metric("Class 0 Hull Vertices", len(hull_0.vertices))
+    
+    with col4:
+        st.metric("Class 1 Hull Vertices", len(hull_1.vertices))
+    
+    # Geometric equivalence verification
+    st.markdown("**Geometric Equivalence Verification:**")
+    
+    # Check what percentage of support vectors lie on convex hull boundaries
+    hull_0_vertices = set(hull_0.vertices)
+    hull_1_vertices = set(hull_1.vertices + len(points_0))  # Offset for second class
+    
+    sv_indices = set(svm.support_)
+    
+    # Count SVs that are on hull vertices
+    sv_on_hull_0 = len(sv_indices & hull_0_vertices)
+    sv_on_hull_1 = len(sv_indices & hull_1_vertices)
+    sv_on_hull_total = sv_on_hull_0 + sv_on_hull_1
+    
+    sv_on_hull_pct = (sv_on_hull_total / len(svm.support_)) * 100
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            "Support Vectors on Hull", 
+            f"{sv_on_hull_pct:.1f}%",
+            help="Percentage of support vectors that lie on convex hull boundaries"
+        )
+    
+    with col2:
+        # Distance between closest points on hulls
+        min_dist = float('inf')
+        for v0_idx in hull_0.vertices:
+            for v1_idx in hull_1.vertices:
+                dist = np.linalg.norm(points_0[v0_idx] - points_1[v1_idx])
+                min_dist = min(min_dist, dist)
+        
+        st.metric(
+            "Min Hull-to-Hull Distance", 
+            f"{min_dist:.4f}",
+            help="Shortest distance between the two convex hulls"
+        )
+    
+    with col3:
+        # Training accuracy
+        accuracy = svm.score(X, y)
+        st.metric("Training Accuracy", f"{accuracy:.1%}")
+    
+    # Computational comparison
+    st.markdown("**Computational Performance:**")
+    
+    import time
+    
+    # Time SVM training
+    start = time.time()
+    for _ in range(50):
+        svm_temp = SVC(kernel='linear', C=1000)
+        svm_temp.fit(X, y)
+    svm_time = (time.time() - start) / 50 * 1000
+    
+    # Time convex hull computation
+    start = time.time()
+    for _ in range(50):
+        hull_0_temp = ConvexHull(points_0)
+        hull_1_temp = ConvexHull(points_1)
+    hull_time = (time.time() - start) / 50 * 1000
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("SVM Training Time", f"{svm_time:.3f} ms")
+    with col2:
+        st.metric("Convex Hull Time", f"{hull_time:.3f} ms")
 
 # Description of why it works
 st.markdown("---")

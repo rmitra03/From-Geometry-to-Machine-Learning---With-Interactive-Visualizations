@@ -112,6 +112,89 @@ with col2:
 # Instructions
 st.info("Add points using 'Generate Random Points' or manually add coordinates below")
 
+# Quantitative Analysis Section
+if len(st.session_state.points) >= n_clusters:
+    st.markdown("---")
+    st.subheader("Quantitative Analysis")
+    
+    points = np.array(st.session_state.points)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(points)
+    centroids = kmeans.cluster_centers_
+    
+    # Metrics row
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Number of Clusters", n_clusters)
+    
+    with col2:
+        st.metric("Iterations to Converge", kmeans.n_iter_)
+    
+    with col3:
+        st.metric("Inertia (WCSS)", f"{kmeans.inertia_:.3f}")
+    
+    with col4:
+        # Silhouette score (measure of cluster quality)
+        from sklearn.metrics import silhouette_score
+        if len(np.unique(labels)) > 1:
+            silhouette = silhouette_score(points, labels)
+            st.metric("Silhouette Score", f"{silhouette:.3f}")
+        else:
+            st.metric("Silhouette Score", "N/A")
+    
+    # Additional analysis
+    st.markdown("**Geometric Equivalence Verification:**")
+    
+    # For each point, verify it's assigned to nearest centroid (Voronoi property)
+    correct_assignments = 0
+    for i, point in enumerate(points):
+        distances = np.linalg.norm(centroids - point, axis=1)
+        nearest_centroid = np.argmin(distances)
+        if labels[i] == nearest_centroid:
+            correct_assignments += 1
+    
+    verification_pct = (correct_assignments / len(points)) * 100
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(
+            "Voronoi Property Verified", 
+            f"{verification_pct:.1f}%",
+            help="Percentage of points assigned to their nearest centroid (Voronoi cell)"
+        )
+    
+    with col2:
+        # Average distance to assigned centroid
+        avg_distance = np.mean([np.linalg.norm(points[i] - centroids[labels[i]]) 
+                                for i in range(len(points))])
+        st.metric("Avg Distance to Centroid", f"{avg_distance:.4f}")
+    
+    # Computational comparison
+    st.markdown("**Computational Performance:**")
+    
+    import time
+    
+    # Time k-means
+    start = time.time()
+    for _ in range(100):
+        kmeans_temp = KMeans(n_clusters=n_clusters, random_state=42, n_init=1, max_iter=1)
+        kmeans_temp.fit(points)
+    kmeans_time = (time.time() - start) / 100 * 1000  # Convert to ms
+    
+    # Time Voronoi construction
+    start = time.time()
+    for _ in range(100):
+        if len(centroids) >= 3:
+            vor_temp = Voronoi(centroids)
+    voronoi_time = (time.time() - start) / 100 * 1000  # Convert to ms
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("k-means Iteration Time", f"{kmeans_time:.3f} ms")
+    with col2:
+        st.metric("Voronoi Construction Time", f"{voronoi_time:.3f} ms")
+
 # Description of why it works
 st.markdown("---")
 st.subheader("Why Does This Happen?")
