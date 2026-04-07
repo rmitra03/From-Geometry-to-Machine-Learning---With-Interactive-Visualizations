@@ -80,9 +80,9 @@ The app will open in your browser at `http://localhost:8501`
 ``` text
 ├── Home.py                           # Landing page
 ├── pages/
-│   ├── 1_Voronoi_and_kmeans.py      # Voronoi/k-means demo
-│   ├── 2_ConvexHull_and_SVM.py      # ConvexHull/SVM demo
-│   ├── 3_Delaunay_and_kNN.py        # Delaunay/k-NN demo
+│   ├── 1_Voronoi_and_kmeans.py       # Voronoi/k-means demo
+│   ├── 2_ConvexHull_and_SVM.py       # ConvexHull/SVM demo
+│   ├── 3_Delaunay_and_kNN.py         # Delaunay/k-NN demo
 │   └── 4_Performance_Analysis.py     # Performance experiments
 ├── .streamlit/
 │   └── config.toml                   # Theme configuration
