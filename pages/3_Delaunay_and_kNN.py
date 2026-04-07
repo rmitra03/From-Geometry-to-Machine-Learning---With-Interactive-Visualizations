@@ -46,8 +46,8 @@ if st.sidebar.button("Generate Random Classes"):
 st.sidebar.markdown("---")
 st.sidebar.caption("Click 'Generate' multiple times to explore different data distributions")
 
-# Main plotting area
-col1, col2 = st.columns(2)
+# Main plotting area - WITH OVERLAY
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Delaunay Triangulation")
@@ -90,9 +90,8 @@ with col1:
         
         # Plot Delaunay triangulation edges
         for simplex in tri.simplices:
-            # Draw triangle edges
             triangle = points[simplex]
-            triangle = np.vstack([triangle, triangle[0]])  # Close the triangle
+            triangle = np.vstack([triangle, triangle[0]])
             fig_delaunay.add_trace(go.Scatter(
                 x=triangle[:, 0],
                 y=triangle[:, 1],
@@ -113,7 +112,7 @@ with col1:
             name='Query Point'
         ))
         
-        # Find and highlight k-nearest neighbors in Delaunay
+        # Find and highlight k-nearest neighbors
         if len(all_points) >= k_neighbors:
             points = np.array(all_points)
             distances = np.linalg.norm(points - qp, axis=1)
@@ -134,7 +133,7 @@ with col1:
     fig_delaunay.update_layout(
         xaxis=dict(range=[0, 1]),
         yaxis=dict(range=[0, 1]),
-        height=500,
+        height=400,
         showlegend=True
     )
     st.plotly_chart(fig_delaunay, use_container_width=True, key="delaunay_plot")
@@ -203,7 +202,7 @@ with col2:
                 mode='markers',
                 marker=dict(size=15, color='green', symbol='star', 
                            line=dict(color=pred_color, width=3)),
-                name=f'Query (Predicted: Class {prediction})'
+                name=f'Query (Class {prediction})'
             ))
             
             # Find k-nearest neighbors
@@ -235,10 +234,111 @@ with col2:
     fig_knn.update_layout(
         xaxis=dict(range=[0, 1]),
         yaxis=dict(range=[0, 1]),
-        height=500,
+        height=400,
         showlegend=True
     )
     st.plotly_chart(fig_knn, use_container_width=True, key="knn_plot")
+
+with col3:
+    st.subheader("Overlay View")
+    fig_overlay = go.Figure()
+    
+    if len(st.session_state.class_0) >= 1 and len(st.session_state.class_1) >= 1:
+        points_0 = np.array(st.session_state.class_0)
+        points_1 = np.array(st.session_state.class_1)
+        
+        X = np.vstack([points_0, points_1])
+        y = np.array([0] * len(points_0) + [1] * len(points_1))
+        
+        knn = KNeighborsClassifier(n_neighbors=k_neighbors)
+        knn.fit(X, y)
+        
+        # Plot decision regions (k-NN)
+        xx, yy = np.meshgrid(np.linspace(0, 1, 100), np.linspace(0, 1, 100))
+        Z = knn.predict(np.c_[xx.ravel(), yy.ravel()])
+        Z = Z.reshape(xx.shape)
+        
+        fig_overlay.add_trace(go.Contour(
+            x=np.linspace(0, 1, 100),
+            y=np.linspace(0, 1, 100),
+            z=Z,
+            colorscale=[[0, 'lightblue'], [1, 'lightcoral']],
+            showscale=False,
+            opacity=0.2,
+            hoverinfo='skip'
+        ))
+        
+        # Plot points
+        fig_overlay.add_trace(go.Scatter(
+            x=points_0[:, 0],
+            y=points_0[:, 1],
+            mode='markers',
+            marker=dict(size=10, color='blue'),
+            name='Class 0'
+        ))
+        
+        fig_overlay.add_trace(go.Scatter(
+            x=points_1[:, 0],
+            y=points_1[:, 1],
+            mode='markers',
+            marker=dict(size=10, color='red'),
+            name='Class 1'
+        ))
+        
+        # Overlay logic: Plot Delaunay edges in black
+        all_points = np.vstack([points_0, points_1])
+        if len(all_points) >= 3:
+            tri = Delaunay(all_points)
+            
+            for simplex in tri.simplices:
+                triangle = all_points[simplex]
+                triangle = np.vstack([triangle, triangle[0]])
+                fig_overlay.add_trace(go.Scatter(
+                    x=triangle[:, 0],
+                    y=triangle[:, 1],
+                    mode='lines',
+                    line=dict(color='black', width=1),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ))
+        
+        # Plot query point if exists
+        if st.session_state.query_point is not None:
+            qp = st.session_state.query_point
+            prediction = knn.predict([qp])[0]
+            pred_color = 'blue' if prediction == 0 else 'red'
+            
+            fig_overlay.add_trace(go.Scatter(
+                x=[qp[0]],
+                y=[qp[1]],
+                mode='markers',
+                marker=dict(size=15, color='green', symbol='star',
+                           line=dict(color=pred_color, width=3)),
+                name='Query'
+            ))
+            
+            # Highlight k-nearest neighbors
+            distances = np.linalg.norm(X - qp, axis=1)
+            nearest_indices = np.argsort(distances)[:k_neighbors]
+            nearest_points = X[nearest_indices]
+            
+            fig_overlay.add_trace(go.Scatter(
+                x=nearest_points[:, 0],
+                y=nearest_points[:, 1],
+                mode='markers',
+                marker=dict(size=12, color='yellow', symbol='circle-open',
+                           line=dict(width=3)),
+                name='k-Nearest'
+            ))
+    
+    fig_overlay.update_layout(
+        xaxis=dict(range=[0, 1]),
+        yaxis=dict(range=[0, 1]),
+        height=400,
+        showlegend=False,
+        title_text="Delaunay edges connect neighbors"
+    )
+    st.plotly_chart(fig_overlay, use_container_width=True, key="overlay_plot")
 
 # Instructions
 st.info("Generate random classes, then set a query point to see k-NN classification")

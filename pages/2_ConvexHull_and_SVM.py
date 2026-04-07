@@ -37,8 +37,8 @@ if st.sidebar.button("Generate Random Classes"):
 st.sidebar.markdown("---")
 st.sidebar.caption("Click 'Generate' multiple times to see different configurations")
 
-# Main plotting area
-col1, col2 = st.columns(2)
+# Main plotting area - WITH OVERLAY
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Convex Hulls")
@@ -95,7 +95,7 @@ with col1:
     fig_hull.update_layout(
         xaxis=dict(range=[0, 1]),
         yaxis=dict(range=[0, 1]),
-        height=500,
+        height=400,
         showlegend=True
     )
     st.plotly_chart(fig_hull, use_container_width=True, key="hull_plot")
@@ -114,7 +114,7 @@ with col2:
         y = np.array([0] * len(points_0) + [1] * len(points_1))
         
         # Train SVM
-        svm = SVC(kernel='linear', C=1000)  # High C for hard margin
+        svm = SVC(kernel='linear', C=1000)
         svm.fit(X, y)
         
         # Plot points
@@ -145,7 +145,6 @@ with col2:
         ))
         
         # Plot decision boundary and margins
-        # Create a mesh
         xx, yy = np.meshgrid(np.linspace(0, 1, 100), np.linspace(0, 1, 100))
         Z = svm.decision_function(np.c_[xx.ravel(), yy.ravel()])
         Z = Z.reshape(xx.shape)
@@ -155,11 +154,7 @@ with col2:
             x=np.linspace(0, 1, 100),
             y=np.linspace(0, 1, 100),
             z=Z,
-            contours=dict(
-                start=0,
-                end=0,
-                size=1,
-            ),
+            contours=dict(start=0, end=0, size=1),
             line=dict(color='green', width=3),
             showscale=False,
             name='Decision Boundary'
@@ -170,11 +165,7 @@ with col2:
             x=np.linspace(0, 1, 100),
             y=np.linspace(0, 1, 100),
             z=Z,
-            contours=dict(
-                start=-1,
-                end=1,
-                size=2,
-            ),
+            contours=dict(start=-1, end=1, size=2),
             line=dict(color='gray', width=1, dash='dash'),
             showscale=False,
             name='Margins'
@@ -183,10 +174,101 @@ with col2:
     fig_svm.update_layout(
         xaxis=dict(range=[0, 1]),
         yaxis=dict(range=[0, 1]),
-        height=500,
+        height=400,
         showlegend=True
     )
     st.plotly_chart(fig_svm, use_container_width=True, key="svm_plot")
+
+with col3:
+    st.subheader("Overlay View")
+    fig_overlay = go.Figure()
+    
+    if len(st.session_state.class_0) >= 3 and len(st.session_state.class_1) >= 3:
+        points_0 = np.array(st.session_state.class_0)
+        points_1 = np.array(st.session_state.class_1)
+        
+        X = np.vstack([points_0, points_1])
+        y = np.array([0] * len(points_0) + [1] * len(points_1))
+        
+        # Train SVM
+        svm = SVC(kernel='linear', C=1000)
+        svm.fit(X, y)
+        
+        # Compute convex hulls
+        hull_0 = ConvexHull(points_0)
+        hull_1 = ConvexHull(points_1)
+        
+        # Plot points
+        fig_overlay.add_trace(go.Scatter(
+            x=points_0[:, 0],
+            y=points_0[:, 1],
+            mode='markers',
+            marker=dict(size=10, color='blue'),
+            name='Class 0'
+        ))
+        
+        fig_overlay.add_trace(go.Scatter(
+            x=points_1[:, 0],
+            y=points_1[:, 1],
+            mode='markers',
+            marker=dict(size=10, color='red'),
+            name='Class 1'
+        ))
+        
+        # Plot both convex hulls in white
+        for simplex in hull_0.simplices:
+            fig_overlay.add_trace(go.Scatter(
+                x=points_0[simplex, 0],
+                y=points_0[simplex, 1],
+                mode='lines',
+                line=dict(color='white', width=2),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+        
+        for simplex in hull_1.simplices:
+            fig_overlay.add_trace(go.Scatter(
+                x=points_1[simplex, 0],
+                y=points_1[simplex, 1],
+                mode='lines',
+                line=dict(color='white', width=2),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+        
+        # Highlight support vectors
+        support_vectors = svm.support_vectors_
+        fig_overlay.add_trace(go.Scatter(
+            x=support_vectors[:, 0],
+            y=support_vectors[:, 1],
+            mode='markers',
+            marker=dict(size=15, color='yellow', symbol='circle-open', line=dict(width=3)),
+            name='Support Vectors'
+        ))
+        
+        # Plot SVM decision boundary
+        xx, yy = np.meshgrid(np.linspace(0, 1, 100), np.linspace(0, 1, 100))
+        Z = svm.decision_function(np.c_[xx.ravel(), yy.ravel()])
+        Z = Z.reshape(xx.shape)
+        
+        fig_overlay.add_trace(go.Contour(
+            x=np.linspace(0, 1, 100),
+            y=np.linspace(0, 1, 100),
+            z=Z,
+            contours=dict(start=0, end=0, size=1),
+            line=dict(color='green', width=3),
+            showscale=False,
+            name='Decision Boundary'
+        ))
+    
+    fig_overlay.update_layout(
+        xaxis=dict(range=[0, 1]),
+        yaxis=dict(range=[0, 1]),
+        height=400,
+        showlegend=False,
+        title_text="Support vectors on hull boundaries"
+    )
+    st.plotly_chart(fig_overlay, use_container_width=True, key="overlay_plot")
 
 # Instructions
 st.info("Click 'Generate Random Classes' to see two separated point clouds")

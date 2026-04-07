@@ -3,6 +3,7 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.spatial import Voronoi
 from sklearn.cluster import KMeans
+from itertools import combinations
 
 st.title("Voronoi Diagrams & k-means Clustering")
 
@@ -26,8 +27,8 @@ if st.sidebar.button("Generate Random Points"):
     st.session_state.points = np.random.rand(20, 2).tolist()
     st.rerun()
 
-# Main plotting area
-col1, col2 = st.columns(2)
+# Main plotting area - WITH OVERLAY
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Voronoi Diagram")
@@ -51,7 +52,7 @@ with col1:
             
             # Plot Voronoi edges
             for simplex in vor.ridge_vertices:
-                if -1 not in simplex:  # Skip infinite edges for now
+                if -1 not in simplex:
                     line = vor.vertices[simplex]
                     fig_voronoi.add_trace(go.Scatter(
                         x=line[:, 0],
@@ -64,7 +65,7 @@ with col1:
     fig_voronoi.update_layout(
         xaxis=dict(range=[0, 1]),
         yaxis=dict(range=[0, 1]),
-        height=500,
+        height=400,
         showlegend=True
     )
     st.plotly_chart(fig_voronoi, use_container_width=True, key="voronoi_plot")
@@ -104,10 +105,77 @@ with col2:
     fig_kmeans.update_layout(
         xaxis=dict(range=[0, 1]),
         yaxis=dict(range=[0, 1]),
-        height=500,
+        height=400,
         showlegend=True
     )
     st.plotly_chart(fig_kmeans, use_container_width=True, key="kmeans_plot")
+
+with col3:
+    st.subheader("Overlay View")
+    fig_overlay = go.Figure()
+    
+    if len(st.session_state.points) >= n_clusters:
+        points = np.array(st.session_state.points)
+        
+        # Run k-means
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(points)
+        centroids = kmeans.cluster_centers_
+        
+        # Plot k-means clusters (colored points)
+        for i in range(n_clusters):
+            cluster_points = points[labels == i]
+            fig_overlay.add_trace(go.Scatter(
+                x=cluster_points[:, 0],
+                y=cluster_points[:, 1],
+                mode='markers',
+                marker=dict(size=8),
+                name=f'Cluster {i}'
+            ))
+        
+        # Plot centroids
+        fig_overlay.add_trace(go.Scatter(
+            x=centroids[:, 0],
+            y=centroids[:, 1],
+            mode='markers',
+            marker=dict(size=15, symbol='x', color='black', line=dict(width=2)),
+            name='Centroids'
+        ))
+        
+        # Overlay logic: Compute Voronoi around the centroids to show cluster boundaries
+        # This will require perpendicular bisectors to show Voronoi boundaries
+        if len(centroids) >= 2:
+            # Colorizing each line for each cluster
+            boundary_colors = ['blue', 'lightblue', 'red', 'pink', 'green', 'purple', 'yellow', 'orange', 'brown', 'gray']
+            color_idx = 0
+            for (i, c1), (j, c2) in combinations(enumerate(centroids), 2):
+                mid = (c1 + c2) / 2
+                direction = c2 - c1
+                perp = np.array([-direction[1], direction[0]])  # Perpendicular vector
+                if np.linalg.norm(perp) > 0:
+                    perp = perp / np.linalg.norm(perp) # Normalize
+                    p1 = mid + perp
+                    p2 = mid - perp
+                    # Implement color here
+                    line_color = boundary_colors[color_idx]
+                    color_idx += 1
+                    fig_overlay.add_trace(go.Scatter(
+                        x=[p1[0], p2[0]],
+                        y=[p1[1], p2[1]],
+                        mode='lines',
+                        line=dict(color=line_color, width=3, dash='solid'),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+
+    fig_overlay.update_layout(
+        xaxis=dict(range=[0, 1]),
+        yaxis=dict(range=[0, 1]),
+        height=400,
+        showlegend=False,
+        title_text="Voronoi edges = Cluster boundaries"
+    )
+    st.plotly_chart(fig_overlay, use_container_width=True, key="overlay_plot")
 
 # Instructions
 st.info("Add points using 'Generate Random Points' or manually add coordinates below")
